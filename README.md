@@ -4,7 +4,9 @@ Written in python, an arcade shooter that merges the classic gameplay of Space I
 <div align="center">
 <img src="./media/image.png" width="400">
 </div>
+
 ---
+
 ## Description
 
 This project is an interactive arcade shooter, developed in Python with the Pygame library, that implements John Conway's Game of Life as the core enemy mechanic. It serves as a practical demonstration of cellular automata within a real-time application.
