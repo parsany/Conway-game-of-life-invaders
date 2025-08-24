@@ -5,7 +5,6 @@ Written in python, an arcade shooter that merges the classic gameplay of Space I
 <img src="./media/image.png" width="400">
 </div>
 
----
 
 ## Description
 
