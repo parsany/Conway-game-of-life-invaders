@@ -43,12 +43,11 @@ DGUN_DELTA = 5000
 DGUN_SHOTS_ANGLE = 0.2
 
 # Gameplay & Difficulty
-SPAWN_DELTA = 1500
-RANDOM_BLOCK_SPAWN_DELTA = 5000
+SPAWN_DELTA_INITIAL = 1500
 DIFFICULTY_DELTA = 30000
-LF_UPDATE_DELTA = 190
-BOSS_SPAWN_SCORE = 25
-MAX_SPAWN_ROW = 30
+DIFFICULTY_RATIO = 0.99
+LF_UPDATE_DELTA = 1000
+BOSS_SPAWN_SCORE = 10
 
 # --- Predefined Conway's Game of Life Patterns ---
 PATTERNS = {
@@ -57,9 +56,6 @@ PATTERNS = {
     "acorn": [[0,1,0,0,0,0,0],[0,0,0,1,0,0,0],[1,1,0,0,1,1,1]],
     "heart": [[1,0,0,0,1],[1,1,0,1,1],[1,0,1,0,1],[0,1,0,1,0],[0,0,1,0,0]]
 }
-# Weighted pool to make gliders more common
-SPAWN_PATTERN_POOL = ["glider", "glider", "heart", "block", "acorn", "heart"]
-
 SPACE_INVADER_PATTERN = [
     [0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
     [0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0], [0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0],
@@ -99,8 +95,6 @@ class GameOfLife:
         self.width, self.height = width, height
         self.grid = [[0 for _ in range(width)] for _ in range(height)]
         self.is_boss_cell = [[False for _ in range(width)] for _ in range(height)]
-        self.spawn_chunk_size = 8 # area chucnks
-        self.spawn_chunks = [0] * (MAX_SPAWN_ROW // self.spawn_chunk_size)
 
     def advance(self):
         new_grid = [[0 for _ in range(self.width)] for _ in range(self.height)]
@@ -137,43 +131,23 @@ class GameOfLife:
                         return False
         return True
 
-    def spawn_random_blocks(self, n):
-        for _ in range(n):
-            pattern = PATTERNS["block"]
-            for _ in range(10):
-                row = random.randint(1, MAX_SPAWN_ROW - 2)
-                col = random.randint(0, self.width - 2)
-                if self.is_area_clear(pattern, row, col):
-                    self.place_pattern(pattern, row, col)
-                    break
-
+    # MODIFIED: Reverted to simple random spawning
     def random_spawn(self, n):
-        for _ in range(n):
-            target_chunk = 0
-            for i, count in enumerate(self.spawn_chunks):
-                if count >= 3:
-                    target_chunk = i + 1
-                    self.spawn_chunks[i] = 0 
-                else:
-                    break 
-            
-            target_chunk = min(target_chunk, len(self.spawn_chunks) - 1)
+        safe_zone_top = self.height - 15 # Player safe zone
+        spawn_area_top = 1
+        spawn_area_bottom = self.height // 2 # Spawn only in the top half
 
-            start_row = target_chunk * self.spawn_chunk_size
-            end_row = start_row + self.spawn_chunk_size
-            
-            pattern_name = random.choice(SPAWN_PATTERN_POOL)
-            pattern = PATTERNS[pattern_name]
+        for _ in range(n):
+            pattern = PATTERNS[random.choice(list(PATTERNS.keys()))]
             pattern_height = len(pattern)
             pattern_width = len(pattern[0])
 
-            for _ in range(15): 
-                row = random.randint(start_row, end_row - pattern_height)
-                row = max(2, row) 
+            # Try a few times to find a random empty spot
+            for _ in range(10): # 10 placement attempts
+                row = random.randint(spawn_area_top, spawn_area_bottom - pattern_height)
                 col = random.randint(0, self.width - pattern_width)
                 if self.is_area_clear(pattern, row, col):
                     self.place_pattern(pattern, row, col)
-                    self.spawn_chunks[target_chunk] += 1
                     break
 
     def kill_cell(self, r, c):
@@ -250,14 +224,15 @@ class Game:
     def reset_game(self, play_without_boss=False):
         self.lifeform = GameOfLife(GRID_WIDTH, GRID_HEIGHT)
         self.player = Player(SHIP_START_X, GRID_HEIGHT - SHIP_HEIGHT_CELLS - 1)
-        self.bullets, self.score, self.level = [], 0, 1
+        self.bullets, self.score = [], 0
+        self.level = 1
+        self.spawn_count = self.level
         self.dgun_shots = DGUN_SHOTS_INITIAL
+        self.spawn_delta = SPAWN_DELTA_INITIAL
         self.boss_spawned, self.boss_health = False, 0
         self.play_without_boss = play_without_boss
         self.last_lf_update, self.last_spawn = pygame.time.get_ticks(), pygame.time.get_ticks()
-        self.last_difficulty_increase = pygame.time.get_ticks()
-        self.last_dgun_ammo_increase = pygame.time.get_ticks()
-        self.last_random_block_spawn = pygame.time.get_ticks()
+        self.last_difficulty_increase, self.last_dgun_ammo_increase = pygame.time.get_ticks(), pygame.time.get_ticks()
         self.running, self.game_over, self.paused, self.show_help, self.you_won = True, False, False, True, False
         self.stars = [Star() for _ in range(150)]
 
@@ -308,8 +283,10 @@ class Game:
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
             self.player.vel_x = -SHIP_SPEED
+            self.show_help = False
         elif keys[pygame.K_RIGHT]:
             self.player.vel_x = SHIP_SPEED
+            self.show_help = False
         else:
             self.player.vel_x = 0
 
@@ -347,17 +324,14 @@ class Game:
                     self.game_over = False
 
     def _update_spawning_and_difficulty(self, current_time):
-        spawn_count = self.level
-        if not self.boss_spawned and current_time - self.last_spawn > SPAWN_DELTA:
-            self.lifeform.random_spawn(spawn_count)
+        if not self.boss_spawned and current_time - self.last_spawn > self.spawn_delta:
+            self.lifeform.random_spawn(self.spawn_count)
             self.last_spawn = current_time
         
-        if current_time - self.last_random_block_spawn > RANDOM_BLOCK_SPAWN_DELTA:
-            self.lifeform.spawn_random_blocks(self.level)
-            self.last_random_block_spawn = current_time
-
         if current_time - self.last_difficulty_increase > DIFFICULTY_DELTA:
             self.level += 1
+            self.spawn_delta *= DIFFICULTY_RATIO
+            self.spawn_count = self.level
             self.last_difficulty_increase = current_time
         
         if current_time - self.last_dgun_ammo_increase > DGUN_DELTA:
