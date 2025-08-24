@@ -1,11 +1,10 @@
 # Conway-game-of-life-invaders
-Space invaders but enemies are cellular automata
 
 Written in python, an arcade shooter that merges the classic gameplay of Space Invaders with the evolving patterns of cellular automata. 
 
 ---
 
-![IMG](./media/image.png)
+![IMG](./media/image.png = 250x250)
 
 ## Description
 
