@@ -4,7 +4,7 @@ Written in python, an arcade shooter that merges the classic gameplay of Space I
 
 ---
 
-![IMG](./media/image.png = 250x250)
+![IMG](./media/image.png = 250x)
 
 ## Description
 
