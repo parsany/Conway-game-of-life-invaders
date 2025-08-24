@@ -20,14 +20,10 @@ Dynamic Boss Battle: A challenging boss encounter is triggered, featuring a larg
 Multiple Game Modes: After completing the primary objective, the simulation can be reset to include the boss challenge again or run in an endless "sandbox" mode without the boss.
 
 
----
-
 ## Requirements
 
 -   Python 3
 -   Pygame
-
----
 
 ## How to Install and Run
 
@@ -49,8 +45,6 @@ Multiple Game Modes: After completing the primary objective, the simulation can 
     python conway_invaders.py
     ```
 
----
-
 ### Controls
 
 -   **Move Ship:** `Left Arrow` / `Right Arrow`
@@ -60,7 +54,6 @@ Multiple Game Modes: After completing the primary objective, the simulation can 
 -   **Toggle Help Screen:** `H`
 -   **Quit Game:** `Q`
 
----
 
 ## Credits
 
