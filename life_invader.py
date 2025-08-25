@@ -144,7 +144,7 @@ class GameOfLife:
         else:
             spawn_row_start = lowest_occupied_row + 3
 
-        safe_zone_top = self.height - 10 # Don't spawn in the bottom 10 rows
+        safe_zone_top = self.height - 5 # Don't spawn in the bottom 5 rows
 
         for _ in range(n):
             pattern = PATTERNS[random.choice(list(PATTERNS.keys()))]
