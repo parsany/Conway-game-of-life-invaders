@@ -48,7 +48,7 @@ SPAWN_COUNT_INITIAL = 1
 DIFFICULTY_DELTA = 30000
 DIFFICULTY_RATIO = 0.99
 LF_UPDATE_DELTA = 1000
-BOSS_SPAWN_SCORE = 25
+BOSS_SPAWN_SCORE = 70
 
 # --- Predefined Conway's Game of Life Patterns ---
 PATTERNS = {
@@ -132,42 +132,40 @@ class GameOfLife:
                         return False
         return True
 
-    def random_spawn(self, n):
-        lowest_occupied_row = -1
-        for r in range(self.height - 1, -1, -1):
-            if any(self.grid[r]):
-                lowest_occupied_row = r
-                break
+    def spawn_enemies(self, level):
+        # Add one extra spawn every 2 levels
+        base_spawns = 1
+        extra_spawns = level // 2  
+        num_spawns = base_spawns + extra_spawns
+        
+        available_patterns = ["block", "glider"]
+        if level > 2: available_patterns.append("heart")
+        if level > 5: available_patterns.append("acorn")
 
-        if lowest_occupied_row == -1:
-            spawn_row_start = 1
-        else:
-            spawn_row_start = lowest_occupied_row + 3
+        weights = [0.6, 0.4] 
+        if level > 2: weights = [0.4, 0.4, 0.2]
+        if level > 3: weights = [0.3, 0.3, 0.2, 0.2]
 
-        safe_zone_top = self.height - 5 # Don't spawn in the bottom 5 rows
-
-        for _ in range(n):
-            pattern = PATTERNS[random.choice(list(PATTERNS.keys()))]
+        for _ in range(num_spawns):
+            pattern_key = random.choices(available_patterns, weights=weights, k=1)[0]
+            pattern = PATTERNS[pattern_key]
             pattern_height = len(pattern)
             pattern_width = len(pattern[0])
 
-            effective_spawn_row = min(spawn_row_start, safe_zone_top - pattern_height)
-            
-            potential_cols = list(range(self.width - pattern_width))
-            random.shuffle(potential_cols)
+            spawn_rows = list(range(1, 8)) 
+            random.shuffle(spawn_rows)
             
             placed = False
-            for c in potential_cols:
-                if self.is_area_clear(pattern, effective_spawn_row, c):
-                    self.place_pattern(pattern, effective_spawn_row, c)
-                    placed = True
-                    break
-            
-            if not placed:
+            for r in spawn_rows:
+                potential_cols = list(range(self.width - pattern_width))
+                random.shuffle(potential_cols)
+                
                 for c in potential_cols:
-                     if self.is_area_clear(pattern, 1, c):
-                        self.place_pattern(pattern, 1, c)
+                    if self.is_area_clear(pattern, r, c):
+                        self.place_pattern(pattern, r, c)
+                        placed = True
                         break
+                if placed: break
 
     def kill_cell(self, r, c):
         if 0 <= r < self.height and 0 <= c < self.width:
@@ -342,7 +340,7 @@ class Game:
 
     def _update_spawning_and_difficulty(self, current_time):
         if not self.boss_spawned and current_time - self.last_spawn > self.spawn_delta:
-            self.lifeform.random_spawn(self.spawn_count)
+            self.lifeform.spawn_enemies(self.level)
             self.last_spawn = current_time
         
         if current_time - self.last_difficulty_increase > DIFFICULTY_DELTA:
